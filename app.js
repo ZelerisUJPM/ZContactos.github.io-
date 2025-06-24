@@ -86,7 +86,13 @@ function cargarArchivo(file) {
   clearPreviousSessions(fileName);
 
   const overlay = document.getElementById("overlay");
-  if (overlay) overlay.style.display = "flex";
+const textoOverlay = document.getElementById("overlay-text");
+
+if (overlay && textoOverlay) {
+  textoOverlay.textContent = "Procesando archivo…";
+  overlay.style.display = "flex";
+}
+
 
   const reader = new FileReader();
   reader.onload = async (event) => {
@@ -223,36 +229,41 @@ function actualizarContador() {
 
 function descargarArchivo() {
   const overlay = document.getElementById("overlay");
-  if (overlay) overlay.style.display = "flex";
+  const textoOverlay = document.getElementById("overlay-text");
+
+  if (overlay && textoOverlay) {
+    textoOverlay.textContent = "Generando archivo…";
+    overlay.style.display = "flex";
+  }
 
   guardarTipificacion();
 
-  const originalData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-  const updatedData = originalData.map(row => {
-    const match = matchingRows.find(r =>
-      r[keyDoc] === row[keyDoc] &&
-      r[keyIncidencia] === row[keyIncidencia] &&
-      r[keyTextoIncidencia] === row[keyTextoIncidencia] &&
-      r[keyEntrega] === row[keyEntrega]
-    );
-    if (match) {
-      row["TIPIFICACIÓN"] = match["TIPIFICACIÓN"] || "";
-      row["OBSERVACIÓN"] = match["OBSERVACIÓN"] || "";
-    }
-    return row;
-  });
-
-  const updatedSheet = XLSX.utils.json_to_sheet(updatedData);
-  const newWorkbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(newWorkbook, updatedSheet, workbook.SheetNames[0]);
-
   setTimeout(() => {
-    XLSX.writeFile(newWorkbook, "archivo_actualizado.xlsx");
-    if (overlay) overlay.style.display = "none";
-  }, 100); // Pequeño retardo para que el overlay aparezca antes del bloqueo del navegador
-}
+    const originalData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
+    const updatedData = originalData.map(row => {
+      const match = matchingRows.find(r =>
+        r[keyDoc] === row[keyDoc] &&
+        r[keyIncidencia] === row[keyIncidencia] &&
+        r[keyTextoIncidencia] === row[keyTextoIncidencia] &&
+        r[keyEntrega] === row[keyEntrega]
+      );
+      if (match) {
+        row["TIPIFICACIÓN"] = match["TIPIFICACIÓN"] || "";
+        row["OBSERVACIÓN"] = match["OBSERVACIÓN"] || "";
+      }
+      return row;
+    });
+
+    const updatedSheet = XLSX.utils.json_to_sheet(updatedData);
+    const newWorkbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWorkbook, updatedSheet, workbook.SheetNames[0]);
+
+    XLSX.writeFile(newWorkbook, "archivo_actualizado.xlsx");
+
+    if (overlay) overlay.style.display = "none";
+  }, 100);
+}
 
 function volverAInicio() {
   localStorage.removeItem("agentName");
