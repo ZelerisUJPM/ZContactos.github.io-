@@ -219,6 +219,9 @@ function actualizarContador() {
 }
 
 function descargarArchivo() {
+  const overlay = document.getElementById("overlay");
+  if (overlay) overlay.style.display = "flex";
+
   guardarTipificacion();
 
   const originalData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
@@ -240,8 +243,13 @@ function descargarArchivo() {
   const updatedSheet = XLSX.utils.json_to_sheet(updatedData);
   const newWorkbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(newWorkbook, updatedSheet, workbook.SheetNames[0]);
-  XLSX.writeFile(newWorkbook, "archivo_actualizado.xlsx");
+
+  setTimeout(() => {
+    XLSX.writeFile(newWorkbook, "archivo_actualizado.xlsx");
+    if (overlay) overlay.style.display = "none";
+  }, 100); // Pequeño retardo para que el overlay aparezca antes del bloqueo del navegador
 }
+
 
 function volverAInicio() {
   localStorage.removeItem("agentName");
