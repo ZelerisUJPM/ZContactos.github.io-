@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión unificada</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<style>
+@keyframes girar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+#overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4); /* Fondo semitransparente oscuro */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.overlay-content {
+  text-align: center;
+  color: white;
+}
+.spinner-logo {
+  width: 60px;
+  height: 60px;
+  animation: girar 1.2s linear infinite;
+}
+@keyframes girar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>
+<body class="container mt-5">
+  <h2 class="mb-3">Gestión de Tipificación</h2>
+
+  <!-- Nombre de agente -->
+  <div id="seccionNombre">
+    <input type="text" id="agentName" class="form-control mb-3" placeholder="Ingresa tu nombre">
+    <button class="btn btn-primary" onclick="activarCarga()">Continuar</button>
+  </div>
+
+  <!-- Gestión -->
+  <div id="seccionGestion" style="display: none;">
+    <h5 id="tituloArchivo">Archivo: Ninguno</h5>
+    <p><strong>Agente:</strong> <span id="agentDisplay"></span></p>
+    <input type="file" id="fileInput" accept=".xlsx" class="form-control mb-3">
+   
+
+
+
+
+    <div id="infoFila" class="mt-4"></div>
+
+    <select id="tipificacion" class="form-select my-3">
+      <option value="">(Sin selección)</option>
+      <option>TRATAMIENTO</option>
+      <option>DENEGADO NO PERMITE CAMBIO DE DIRECCION</option>
+      <option>DENEGANO NO ES POSIBLE CAMBIO DE TLC TELCO</option>
+      <option>HOME-GOI</option>
+      <option>ENTREGADO</option>
+      <option>DEVUELTO</option>
+      <option>INFORMADO AGENCIA DE TRANSPORTE</option>
+    </select>
+
+    <div class="btn-group mb-3">
+      <button class="btn btn-outline-dark" onclick="filaAnterior()">Anterior</button>
+      <button class="btn btn-primary" onclick="siguienteFila()">Siguiente</button>
+      <button class="btn btn-secondary" onclick="descargarArchivo()">Descargar</button>
+      <span id="mensajeGuardado" class="ms-3 text-success fw-bold" style="display: none;"></span>
+    </div>
+
+
+    <p><strong>Casos restantes:</strong> <span id="restantes">0</span></p>
+  </div>
+
+<!-- Modal de advertencia -->
+<div class="modal fade" id="modalArchivo" tabindex="-1" aria-labelledby="modalArchivoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-warning">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="modalArchivoLabel">¿Estás seguro?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        Ya se estaba trabajando con otro archivo. Si cargas uno nuevo, <strong>se perderá el progreso actual</strong>.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmarCambio">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function activarCarga() {
+      const name = document.getElementById("agentName").value.trim();
+      if (name) {
+        localStorage.setItem("agentName", name);
+        document.getElementById("agentDisplay").textContent = name;
+        document.getElementById("seccionNombre").style.display = "none";
+        document.getElementById("seccionGestion").style.display = "block";
+      } else {
+        alert("Por favor, ingresa un nombre válido.");
+      }
+    }
+  </script>
+<!-- Overlay de carga -->
+<div id="overlay" style="display: none;">
+  <div class="overlay-content">
+    <img src="img/logo.ico" alt="Cargando..." class="spinner-logo">
+    <p>Procesando archivo...</p>
+  </div>
+</div>
+</body>
+</html>
