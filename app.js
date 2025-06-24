@@ -100,10 +100,11 @@ function cargarArchivo(file) {
       const columnas = Object.keys(jsonData[0] || {});
 
       keyAgente = columnas.find(k => k.toLowerCase().includes("agente")) || "";
-      keyDoc = columnas.find(k => k.toLowerCase().includes("doc")) || "Doc. Comercial";
       keyIncidencia = columnas.find(k => k.toLowerCase().includes("inci")) || "Nº Incidencia";
-      keyTextoIncidencia = columnas.find(k => k.toLowerCase().includes("texto")) || "Texto Incidencia";
+      keyDoc = columnas.find(k => k.toLowerCase().includes("doc")) || "Doc. Comercial";
       keyEntrega = columnas.find(k => k.toLowerCase().includes("entrega")) || "Entrega";
+      keyTextoIncidencia = columnas.find(k => k.toLowerCase().includes("texto")) || "Texto Incidencia";
+      
 
       const agentName = localStorage.getItem("agentName") || "";
       let filas;
@@ -152,10 +153,10 @@ function mostrarFila() {
   const fila = matchingRows[currentIndex];
 
   document.getElementById("infoFila").innerHTML = `
-    <p><strong>${keyDoc}:</strong> ${fila[keyDoc] || "N/A"}</p>
     <p><strong>${keyIncidencia}:</strong> ${fila[keyIncidencia] || "N/A"}</p>
-    <p><strong>${keyTextoIncidencia}:</strong> ${fila[keyTextoIncidencia] || "N/A"}</p>
+    <p><strong>${keyDoc}:</strong> ${fila[keyDoc] || "N/A"}</p>
     <p><strong>${keyEntrega}:</strong> ${fila[keyEntrega] || "N/A"}</p>
+    <p><strong>${keyTextoIncidencia}:</strong> ${fila[keyTextoIncidencia] || "N/A"}</p>    
   `;
 
   const select = document.getElementById("tipificacion");
