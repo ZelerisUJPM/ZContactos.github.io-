@@ -36,8 +36,40 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+.rotar {
+  transform: rotate(180deg);
+  transition: transform 0.4s ease;
+}
+#modoOscuroBtn img {
+  transition: transform 0.4s ease;
+}
+.dark-mode {
+  background-color: #121212 !important;
+  color: #f1f1f1 !important;
+}
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea {
+  background-color: #1e1e1e !important;
+  color: #f1f1f1 !important;
+}
+
+button.btn {
+  border-radius: 8px;
+  transition: transform 0.2s ease-in-out;
+}
+button.btn:hover {
+  transform: scale(1.05);
+}
+
 </style>
 <body class="container mt-5">
+<!-- Botón modo oscuro -->
+<button id="modoOscuroBtn" style="position: absolute; top: 15px; left: 15px; background: transparent; border: none;" title="Alternar tema">
+  <img id="iconoTema" src="img/oscuro.ico" alt="Modo Oscuro" style="width: 32px; height: 32px;">
+</button>
+
   <h2 class="mb-3 text-center">Gestión de Tipificación</h2>
 
   <!-- Nombre de agente -->
@@ -52,10 +84,6 @@
     <p><strong>Agente:</strong> <span id="agentDisplay"></span></p>
     <input type="file" id="fileInput" accept=".xlsx" class="form-control mb-3">
    
-
-
-
-
     <div id="infoFila" class="mt-4"></div>
 
     <select id="tipificacion" class="form-select my-3">
@@ -69,12 +97,19 @@
       <option>INFORMADO AGENCIA DE TRANSPORTE</option>
     </select>
 
-    <div class="btn-group mb-3">
-      <button class="btn btn-outline-dark" onclick="filaAnterior()">Anterior</button>
-      <button class="btn btn-primary" onclick="siguienteFila()">Siguiente</button>
-      <button class="btn btn-secondary" onclick="descargarArchivo()">Descargar</button>
-      <span id="mensajeGuardado" class="ms-3 text-success fw-bold" style="display: none;"></span>
-    </div>
+    <!-- Grupo de botones refinados -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+  <button class="btn btn-outline-dark btn-sm" onclick="filaAnterior()">
+    ⬅️ Anterior
+  </button>
+  <button class="btn btn-success btn-sm" onclick="siguienteFila()">
+    ✅ Siguiente
+  </button>
+  <button class="btn btn-primary btn-sm" onclick="descargarArchivo()">
+    💾 Descargar
+  </button>
+</div>
+
 
 
     <p><strong>Casos restantes:</strong> <span id="restantes">0</span></p>
