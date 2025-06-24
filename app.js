@@ -123,7 +123,10 @@ if (agentName.toLowerCase() === "todo") {
         currentIndex = 0;
         document.getElementById("infoFila").innerHTML = `
           <p class='text-danger fw-bold'>🚫 Este archivo no contiene casos para el agente.</p>
-          <button class="btn btn-outline-warning mt-2" onclick="volverAInicio()">Volver</button>
+          <button class="btn btn-warning btn-sm" onclick="volverAInicio()">
+  🔄 Volver
+</button>
+
         `;
         document.getElementById("restantes").textContent = "0";
         if (overlay) overlay.style.display = "none";
@@ -255,3 +258,14 @@ function volverAInicio() {
   localStorage.removeItem("agentName");
   window.location.href = "index.html";
 }
+
+document.getElementById("modoOscuroBtn").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+
+  const icono = document.getElementById("iconoTema");
+  icono.classList.toggle("rotar");
+
+  const enModoOscuro = document.body.classList.contains("dark-mode");
+  icono.src = enModoOscuro ? "img/claro.ico" : "img/oscuro.ico";
+  icono.alt = enModoOscuro ? "Modo Claro" : "Modo Oscuro";
+});
