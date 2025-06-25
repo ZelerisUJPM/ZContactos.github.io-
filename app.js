@@ -200,6 +200,7 @@ function guardarTipificacion() {
 function siguienteFila() {
   if (currentIndex < matchingRows.length) {
     guardarTipificacion();
+    agregarAGestionados(matchingRows[currentIndex]);
     currentIndex++;
     mostrarFila();
     actualizarContador();
@@ -220,6 +221,7 @@ function filaAnterior() {
       setTimeout(() => { msg.style.display = "none"; }, 2500);
     }
   }
+quitarUltimoGestionado();
 }
 
 function actualizarContador() {
@@ -280,3 +282,31 @@ document.getElementById("modoOscuroBtn").addEventListener("click", () => {
   icono.src = enModoOscuro ? "img/claro.ico" : "img/oscuro.ico";
   icono.alt = enModoOscuro ? "Modo Claro" : "Modo Oscuro";
 });
+
+//Lista de casos Gestionados
+function agregarAGestionados(fila) {
+  const ul = document.getElementById("listaGestionados");
+  if (!ul) return;
+
+  const li = document.createElement("li");
+  li.className = "list-group-item d-flex justify-content-between align-items-center";
+
+  const contenido = `
+    <div>
+      <strong>Incidencia:</strong> ${fila[keyIncidencia] || "N/A"} |
+      <strong>Doc:</strong> ${fila[keyDoc] || "N/A"} |
+      <strong>Entrega:</strong> ${fila[keyEntrega] || "N/A"}
+    </div>
+    <span class="badge bg-primary">${fila["TIPIFICACIÓN"] || fila["OBSERVACIÓN"] || "-"}</span>
+  `;
+
+  li.innerHTML = contenido;
+  ul.appendChild(li);
+}
+
+function quitarUltimoGestionado() {
+  const ul = document.getElementById("listaGestionados");
+  if (ul && ul.lastChild) {
+    ul.removeChild(ul.lastChild);
+  }
+}
