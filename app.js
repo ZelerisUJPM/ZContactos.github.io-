@@ -1,17 +1,17 @@
+// app.js
+
+// Variables globales
 let workbook, worksheet, matchingRows = [], currentIndex = 0;
 let keyAgente = "", keyDoc = "", keyIncidencia = "", keyTextoIncidencia = "", keyEntrega = "";
-let fileName = "", db, archivoPendiente = null, modalArchivo;
+let fileName = "", db = null, archivoPendiente = null, modalArchivo = null;
 
-// Inicializa IndexedDB
+// 1. Inicializar IndexedDB
 function initDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("tipificacion_db", 1);
-    request.onerror = () => reject("Error al abrir IndexedDB");
-    request.onsuccess = () => {
-      db = request.result;
-      resolve();
-    };
-    request.onupgradeneeded = (e) => {
+    const req = indexedDB.open("tipificacion_db", 1);
+    req.onerror = () => reject("Error al abrir IndexedDB");
+    req.onsuccess = () => { db = req.result; resolve(); };
+    req.onupgradeneeded = e => {
       db = e.target.result;
       if (!db.objectStoreNames.contains("gestiones")) {
         db.createObjectStore("gestiones", { keyPath: "fileName" });
@@ -20,183 +20,187 @@ function initDB() {
   });
 }
 
+// 2. Guardar sesión en IndexedDB
 function saveSession() {
   if (!db || !fileName) return;
-  const data = { fileName, currentIndex, matchingRows };
   const tx = db.transaction("gestiones", "readwrite");
-  tx.objectStore("gestiones").put(data);
+  tx.objectStore("gestiones").put({ fileName, currentIndex, matchingRows });
 }
 
-function loadSession(nombreArchivo) {
-  return new Promise((resolve) => {
+// 3. Cargar sesión desde IndexedDB
+function loadSession(name) {
+  return new Promise(resolve => {
+    if (!db) return resolve(null);
     const tx = db.transaction("gestiones", "readonly");
-    tx.objectStore("gestiones").get(nombreArchivo).onsuccess = e =>
-      resolve(e.target.result);
+    tx.objectStore("gestiones").get(name).onsuccess = e => resolve(e.target.result);
   });
 }
 
-function clearPreviousSessions(nuevoNombre) {
+// 4. Limpiar sesiones previas (otros archivos)
+function clearPreviousSessions(current) {
+  if (!db) return;
   const tx = db.transaction("gestiones", "readwrite");
   tx.objectStore("gestiones").getAllKeys().onsuccess = e => {
     e.target.result.forEach(k => {
-      if (k !== nuevoNombre) tx.objectStore("gestiones").delete(k);
+      if (k !== current) tx.objectStore("gestiones").delete(k);
     });
   };
 }
 
+// 5. Setup al cargar el DOM
 document.addEventListener("DOMContentLoaded", async () => {
   await initDB();
 
+  // Mostrar agente
   const agentName = localStorage.getItem("agentName") || "";
   document.getElementById("agentDisplay").textContent = agentName;
 
-  document.getElementById("fileInput").addEventListener("change", handleFile);
+  // Listeners UI
+  const fileInput = document.getElementById("fileInput");
+  if (fileInput) fileInput.addEventListener("change", handleFile);
 
-  const confirmarCambio = document.getElementById("confirmarCambio");
-  if (confirmarCambio) {
-    confirmarCambio.addEventListener("click", () => {
-      if (modalArchivo) modalArchivo.hide();
-      if (archivoPendiente) {
-        cargarArchivo(archivoPendiente);
-        archivoPendiente = null;
-      }
+  const btnModo = document.getElementById("modoOscuroBtn");
+  if (btnModo) btnModo.addEventListener("click", toggleDarkMode);
+
+  const btnDesc = document.getElementById("btnDescargar");
+  if (btnDesc) btnDesc.addEventListener("click", descargarArchivo);
+
+  const btnNext = document.getElementById("btnSiguiente");
+  if (btnNext) btnNext.addEventListener("click", siguienteFila);
+
+  const btnPrev = document.getElementById("btnAnterior");
+  if (btnPrev) btnPrev.addEventListener("click", filaAnterior);
+
+  const btnConfirm = document.getElementById("confirmarCambio");
+  if (btnConfirm) {
+    modalArchivo = new bootstrap.Modal(document.getElementById("modalArchivo"));
+    btnConfirm.addEventListener("click", () => {
+      modalArchivo.hide();
+      if (archivoPendiente) cargarArchivo(archivoPendiente);
+      archivoPendiente = null;
     });
   }
 });
 
+// 6. Manejar selección de archivo
 function handleFile(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   if (fileName && matchingRows.length > 0 && file.name !== fileName) {
     archivoPendiente = file;
-    if (!modalArchivo) {
-      modalArchivo = new bootstrap.Modal(document.getElementById("modalArchivo"));
-    }
     modalArchivo.show();
-    return;
+  } else {
+    cargarArchivo(file);
   }
-
-  cargarArchivo(file);
 }
 
+// 7. Cargar y procesar Excel
 function cargarArchivo(file) {
   fileName = file.name;
-  document.getElementById("tituloArchivo").textContent = `Archivo: ${fileName}`;
   clearPreviousSessions(fileName);
 
+  // Overlay
   const overlay = document.getElementById("overlay");
-const textoOverlay = document.getElementById("overlay-text");
-
-if (overlay && textoOverlay) {
-  textoOverlay.textContent = "Procesando archivo…";
-  overlay.style.display = "flex";
-}
-
+  const textoOv = document.getElementById("overlay-text");
+  if (overlay && textoOv) {
+    textoOv.textContent = "Procesando archivo…";
+    overlay.style.display = "flex";
+  }
 
   const reader = new FileReader();
-  reader.onload = async (event) => {
+  reader.onload = async evt => {
     try {
-      const data = new Uint8Array(event.target.result);
+      const data = new Uint8Array(evt.target.result);
       workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      worksheet = workbook.Sheets[sheetName];
+      worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-      const columnas = Object.keys(jsonData[0] || {});
+      // Detectar columnas
+      const cols = Object.keys(json[0] || {});
+      keyAgente          = cols.find(c => /agente/i.test(c))          || "";
+      keyDoc             = cols.find(c => /doc/i.test(c))             || "Doc. Comercial";
+      keyIncidencia      = cols.find(c => /inci/i.test(c))            || "Nº Incidencia";
+      keyTextoIncidencia = cols.find(c => /texto/i.test(c))           || "Texto Incidencia";
+      keyEntrega         = cols.find(c => /entrega/i.test(c))         || "Entrega";
 
-      keyAgente = columnas.find(k => k.toLowerCase().includes("agente")) || "";
-      keyIncidencia = columnas.find(k => k.toLowerCase().includes("inci")) || "Nº Incidencia";
-      keyDoc = columnas.find(k => k.toLowerCase().includes("doc")) || "Doc. Comercial";
-      keyEntrega = columnas.find(k => k.toLowerCase().includes("entrega")) || "Entrega";
-      keyTextoIncidencia = columnas.find(k => k.toLowerCase().includes("texto")) || "Texto Incidencia";
-      
-
+      // Filtrar por agente
       const agentName = localStorage.getItem("agentName") || "";
-      let filas;
-if (agentName.toLowerCase() === "todo") {
-  filas = jsonData; // Mostrar todo sin filtrar
-} else {
-  filas = jsonData.filter(row =>
-    row[keyAgente]?.toString().trim().toLowerCase() === agentName.toLowerCase()
-  );
-}
+      const filas = agentName.toLowerCase() === "todo"
+        ? json
+        : json.filter(r =>
+            r[keyAgente]?.toString().trim().toLowerCase() === agentName.toLowerCase()
+          );
 
-
-      // Si no hay coincidencias, mostrar mensaje y botón para volver
       if (filas.length === 0) {
-        matchingRows = [];
-        currentIndex = 0;
         document.getElementById("infoFila").innerHTML = `
-          <p class='text-danger fw-bold'>🚫 Este archivo no contiene casos para el agente.</p>
-          <button class="btn btn-warning btn-sm" onclick="volverAInicio()">
-  🔄 Volver
-</button>
-
-        `;
+          <p class="text-danger fw-bold">
+            🚫 Este archivo no contiene casos para el agente.
+          </p>
+          <button class="btn btn-warning" onclick="volverAInicio()">
+            Volver
+          </button>`;
         document.getElementById("restantes").textContent = "0";
-        if (overlay) overlay.style.display = "none";
         return;
       }
 
+      // Restaurar sesión guardada
       const saved = await loadSession(fileName);
-      currentIndex = saved?.currentIndex || 0;
       matchingRows = saved?.matchingRows || filas;
+      currentIndex = saved?.currentIndex || 0;
 
       mostrarFila();
       actualizarContador();
+      reconstruirListaGestionados();
     } finally {
       if (overlay) overlay.style.display = "none";
     }
   };
-
   reader.readAsArrayBuffer(file);
+
+  // Título archivo
+  document.getElementById("tituloArchivo").textContent = `Archivo: ${fileName}`;
 }
 
+// 8. Mostrar fila actual
 function mostrarFila() {
-  if (currentIndex >= matchingRows.length) {
-    document.getElementById("infoFila").innerHTML = "<p>¡No hay más filas para mostrar!</p>";
+  const info = document.getElementById("infoFila");
+  const row = matchingRows[currentIndex];
+  if (!row) {
+    info.innerHTML = "<p>¡No hay más filas para mostrar!</p>";
     return;
   }
-
-  const fila = matchingRows[currentIndex];
-
-  document.getElementById("infoFila").innerHTML = `
-    <p><strong>${keyIncidencia}:</strong> ${fila[keyIncidencia] || "N/A"}</p>
-    <p><strong>${keyDoc}:</strong> ${fila[keyDoc] || "N/A"}</p>
-    <p><strong>${keyEntrega}:</strong> ${fila[keyEntrega] || "N/A"}</p>
-    <p><strong>${keyTextoIncidencia}:</strong> ${fila[keyTextoIncidencia] || "N/A"}</p>    
+  info.innerHTML = `
+    <p><strong>${keyDoc}:</strong> ${row[keyDoc] || "-"}</p>
+    <p><strong>${keyIncidencia}:</strong> ${row[keyIncidencia] || "-"}</p>
+    <p><strong>${keyTextoIncidencia}:</strong> ${row[keyTextoIncidencia] || "-"}</p>
+    <p><strong>${keyEntrega}:</strong> ${row[keyEntrega] || "-"}</p>
   `;
-
-  const select = document.getElementById("tipificacion");
-  select.value = fila["TIPIFICACIÓN"] || "";
+  document.getElementById("tipificacion").value = row["TIPIFICACIÓN"] || "";
 }
 
+// 9. Guardar tipificación
 function guardarTipificacion() {
   if (currentIndex >= matchingRows.length) return;
+  const val = document.getElementById("tipificacion").value.trim();
+  const row = matchingRows[currentIndex];
 
-  const select = document.getElementById("tipificacion");
-  const tipificacion = select.value.trim();
-  const fila = matchingRows[currentIndex];
-
-  if (tipificacion === "") {
-    fila["OBSERVACIÓN"] = "NO PERMITE GESTION";
-    delete fila["TIPIFICACIÓN"];
+  if (val === "" || val === "(Sin seleccion)") {
+    delete row["TIPIFICACIÓN"];
+    row["OBSERVACIÓN"] = "NO PERMITE GESTION";
   } else {
-    fila["TIPIFICACIÓN"] = tipificacion;
-    delete fila["OBSERVACIÓN"];
+    row["TIPIFICACIÓN"] = val;
+    delete row["OBSERVACIÓN"];
   }
 
   const msg = document.getElementById("mensajeGuardado");
-  if (msg) {
-    msg.textContent = "✅ Tipificación guardada";
-    msg.style.display = "inline";
-    setTimeout(() => { msg.style.display = "none"; }, 3000);
-  }
+  msg.textContent = "✅ Tipificación guardada";
+  msg.style.display = "block";
+  setTimeout(() => msg.style.display = "none", 2500);
 
   saveSession();
 }
 
+// 10. Navegación de filas
 function siguienteFila() {
   if (currentIndex < matchingRows.length) {
     guardarTipificacion();
@@ -211,79 +215,30 @@ function filaAnterior() {
   if (currentIndex > 0) {
     guardarTipificacion();
     currentIndex--;
+    quitarUltimoGestionado();
     mostrarFila();
     actualizarContador();
   } else {
     const msg = document.getElementById("mensajeGuardado");
-    if (msg) {
-      msg.textContent = "Ya estás en la primera fila";
-      msg.style.display = "inline";
-      setTimeout(() => { msg.style.display = "none"; }, 2500);
-    }
+    msg.textContent = "⚠️ Ya estás en la primera fila";
+    msg.style.display = "block";
+    setTimeout(() => msg.style.display = "none", 2500);
   }
-quitarUltimoGestionado();
 }
 
+// 11. Contador restantes
 function actualizarContador() {
-  const restantes = matchingRows.length - currentIndex;
-  document.getElementById("restantes").textContent = restantes;
+  const rem = matchingRows.length - currentIndex;
+  document.getElementById("restantes").textContent = rem;
 }
 
-function descargarArchivo() {
-  const overlay = document.getElementById("overlay");
-  const textoOverlay = document.getElementById("overlay-text");
-
-  if (overlay && textoOverlay) {
-    textoOverlay.textContent = "Generando archivo…";
-    overlay.style.display = "flex";
-  }
-
-  guardarTipificacion();
-
-  setTimeout(() => {
-    const originalData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-    const updatedData = originalData.map(row => {
-      const match = matchingRows.find(r =>
-        r[keyDoc] === row[keyDoc] &&
-        r[keyIncidencia] === row[keyIncidencia] &&
-        r[keyTextoIncidencia] === row[keyTextoIncidencia] &&
-        r[keyEntrega] === row[keyEntrega]
-      );
-      if (match) {
-        row["TIPIFICACIÓN"] = match["TIPIFICACIÓN"] || "";
-        row["OBSERVACIÓN"] = match["OBSERVACIÓN"] || "";
-      }
-      return row;
-    });
-
-    const updatedSheet = XLSX.utils.json_to_sheet(updatedData);
-    const newWorkbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(newWorkbook, updatedSheet, workbook.SheetNames[0]);
-
-    XLSX.writeFile(newWorkbook, "archivo_actualizado.xlsx");
-
-    if (overlay) overlay.style.display = "none";
-  }, 100);
-}
-
+// 12. Volver a inicio
 function volverAInicio() {
   localStorage.removeItem("agentName");
   window.location.href = "index.html";
 }
 
-document.getElementById("modoOscuroBtn").addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
-
-  const icono = document.getElementById("iconoTema");
-  icono.classList.toggle("rotar");
-
-  const enModoOscuro = document.body.classList.contains("dark-mode");
-  icono.src = enModoOscuro ? "img/claro.ico" : "img/oscuro.ico";
-  icono.alt = enModoOscuro ? "Modo Claro" : "Modo Oscuro";
-});
-
-//Lista de casos Gestionados
+// 13. Lista de casos gestionados (horizontal)
 function agregarAGestionados(fila) {
   const ul = document.getElementById("listaGestionados");
   if (!ul) return;
@@ -297,16 +252,68 @@ function agregarAGestionados(fila) {
       <strong>Doc:</strong> ${fila[keyDoc] || "N/A"} |
       <strong>Entrega:</strong> ${fila[keyEntrega] || "N/A"}
     </div>
-    <span class="badge bg-primary">${fila["TIPIFICACIÓN"] || fila["OBSERVACIÓN"] || "-"}</span>
+    <span class="badge bg-primary">
+      ${fila["TIPIFICACIÓN"] || fila["OBSERVACIÓN"] || "-"}
+    </span>
   `;
-
   li.innerHTML = contenido;
   ul.appendChild(li);
 }
 
 function quitarUltimoGestionado() {
   const ul = document.getElementById("listaGestionados");
-  if (ul && ul.lastChild) {
-    ul.removeChild(ul.lastChild);
+  if (ul.lastChild) ul.removeChild(ul.lastChild);
+}
+
+function reconstruirListaGestionados() {
+  const ul = document.getElementById("listaGestionados");
+  ul.innerHTML = "";
+  for (let i = 0; i < currentIndex; i++) {
+    agregarAGestionados(matchingRows[i]);
   }
+}
+
+// 14. Modo oscuro
+function toggleDarkMode() {
+  document.body.classList.toggle("dark-mode");
+  const icon = document.getElementById("iconoTema");
+  if (icon) icon.classList.toggle("rotar");
+  const dark = document.body.classList.contains("dark-mode");
+  if (icon) icon.src = dark ? "img/claro.ico" : "img/oscuro.ico";
+}
+
+// 15. Descarga a Excel (sin resaltado)
+function descargarArchivo() {
+  const overlay = document.getElementById("overlay");
+  const textoOv = document.getElementById("overlay-text");
+  if (overlay && textoOv) {
+    textoOv.textContent = "Generando archivo…";
+    overlay.style.display = "flex";
+  }
+
+  guardarTipificacion();
+
+  setTimeout(() => {
+    const original = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    const updated = original.map(row => {
+      const m = matchingRows.find(r =>
+        r[keyDoc] === row[keyDoc] &&
+        r[keyIncidencia] === row[keyIncidencia] &&
+        r[keyTextoIncidencia] === row[keyTextoIncidencia] &&
+        r[keyEntrega] === row[keyEntrega]
+      );
+      if (m) {
+        row["TIPIFICACIÓN"] = m["TIPIFICACIÓN"] || "";
+        row["OBSERVACIÓN"] = m["OBSERVACIÓN"] || "";
+      }
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(updated);
+    const wb2 = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb2, ws, "Hoja1");
+    XLSX.writeFile(wb2, "archivo_actualizado.xlsx");
+
+    if (overlay) overlay.style.display = "none";
+  }, 100);
 }
