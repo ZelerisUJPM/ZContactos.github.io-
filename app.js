@@ -118,11 +118,10 @@ function cargarArchivo(file) {
       // Detectar columnas
       const cols = Object.keys(json[0] || {});
       keyAgente          = cols.find(c => /agente/i.test(c))          || "";
-      keyDoc             = cols.find(c => /doc/i.test(c))             || "Doc. Comercial";
       keyIncidencia      = cols.find(c => /inci/i.test(c))            || "Nº Incidencia";
-      keyTextoIncidencia = cols.find(c => /texto/i.test(c))           || "Texto Incidencia";
+      keyDoc             = cols.find(c => /doc/i.test(c))             || "Doc. Comercial";
       keyEntrega         = cols.find(c => /entrega/i.test(c))         || "Entrega";
-
+      keyTextoIncidencia = cols.find(c => /texto/i.test(c))           || "Texto Incidencia";
       // Filtrar por agente
       const agentName = localStorage.getItem("agentName") || "";
       const filas = agentName.toLowerCase() === "todo"
@@ -170,10 +169,10 @@ function mostrarFila() {
     return;
   }
   info.innerHTML = `
-    <p><strong>${keyDoc}:</strong> ${row[keyDoc] || "-"}</p>
     <p><strong>${keyIncidencia}:</strong> ${row[keyIncidencia] || "-"}</p>
+    <p><strong>${keyDoc}:</strong> ${row[keyDoc] || "-"}</p>
+    <p><strong>${keyEntrega}:</strong> ${row[keyEntrega] || "-"}</p>    
     <p><strong>${keyTextoIncidencia}:</strong> ${row[keyTextoIncidencia] || "-"}</p>
-    <p><strong>${keyEntrega}:</strong> ${row[keyEntrega] || "-"}</p>
   `;
   document.getElementById("tipificacion").value = row["TIPIFICACIÓN"] || "";
 }
